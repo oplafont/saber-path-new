@@ -1,0 +1,28 @@
+{
+  "name": "saber-path",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Star Wars – Jedi Path Quiz web application",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "15.4.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "tailwindcss": "^3.4.4",
+    "autoprefixer": "^10.4.15",
+    "postcss": "^8.4.24",
+    "pdf-lib": "^1.17.1",
+    "stripe": "^13.8.0",
+    "@stripe/stripe-js": "^2.0.0",
+    "react-markdown": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@types/react": "^18.2.24",
+    "typescript": "^5.5.2"
+  }
+}
