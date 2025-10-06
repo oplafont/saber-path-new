@@ -1,128 +1,195 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useRouter } from 'next/navigation';
+import {
+  QUESTIONS,
+  createEmptyAnswers,
+  type JediProfileData,
+  type RankedAnswer,
+} from '@/lib/quiz';
 
-// Define the shape of a single quiz question.  Each question contains
-// the prompt text and four possible answers.  The user will rank three of
-// these answers from most preferred to least.  Ensuring the ranks are
-// unique within each question helps capture nuanced preferences.
-interface QuizQuestion {
-  text: string;
-  options: string[];
+interface StatsBarProps {
+  label: string;
+  percentage: number;
+  description: string;
 }
 
-// Hard‑coded quiz questions.  Feel free to modify these to better
-// reflect the Jedi virtues you want to evaluate.  Keep the number of
-// options at exactly four so that ranking works cleanly.
-const QUESTIONS: QuizQuestion[] = [
+interface VirtueProps {
+  label: string;
+  description: string;
+  percentage: number;
+}
+
+interface TimelineProps {
+  era: string;
+  highlight: string;
+  outcome: string;
+}
+
+interface ModuleProps {
+  title: string;
+  description: string;
+  duration: string;
+}
+
+interface MissionProps {
+  title: string;
+  location: string;
+  objective: string;
+}
+
+interface StarStopProps {
+  stop: string;
+  focus: string;
+  reason: string;
+}
+
+const heroHighlights = [
   {
-    text: 'When faced with conflict, you prefer:',
-    options: [
-      'Calm negotiation and diplomacy',
-      'Defensive manoeuvres to protect others',
-      'Swift offensive action to end it quickly',
-      'Listening to the Force for guidance',
-    ],
+    title: 'Holocron-grade destiny',
+    description: 'Receive a cinematic narrative with saber specs, Force philosophy, allies, rivals, and a signature holomessage.',
   },
   {
-    text: 'Which training appeals to you the most?',
-    options: [
-      'Lightsaber forms and combat techniques',
-      'Meditation and expanding your connection to the Force',
-      'Tactical leadership and battlefield strategy',
-      'Deep study of ancient Jedi texts and lore',
-    ],
+    title: 'Actionable training arc',
+    description: 'Unlock curated drills, meditations, missions, and holocrons so you can start living the Jedi lifestyle today.',
   },
   {
-    text: 'Pick the trait you value most:',
-    options: [
-      'Courage',
-      'Wisdom',
-      'Compassion',
-      'Discipline',
-    ],
-  },
-  {
-    text: 'Your ideal lightsaber is:',
-    options: [
-      'A single‑bladed weapon with a classic hilt',
-      'A curved hilt emphasising finesse',
-      'A double‑bladed staff for versatility',
-      'A shoto or short blade paired with the Force',
-    ],
-  },
-  {
-    text: 'Choose the destiny that resonates with you:',
-    options: [
-      'Guarding the peace across the galaxy',
-      'Teaching Padawans and passing on knowledge',
-      'Exploring unknown regions and uncovering secrets',
-      'Leading troops into battle against tyranny',
-    ],
+    title: 'Collector-friendly rewards',
+    description: 'Download a printable certificate, share a markdown report, and keep exploring with a guided star map itinerary.',
   },
 ];
 
-// The shape of a single answer set for a question.  Each rank holds
-// the chosen option value.  Using nullable strings allows us to
-// differentiate between unselected and intentionally selected options.
-interface RankedAnswer {
-  first: string | null;
-  second: string | null;
-  third: string | null;
+const unlockBenefits = [
+  {
+    title: 'Legendary archetype dossier',
+    detail: 'Full markdown lore with backstory, theme music, and comparisons to iconic Jedi masters.',
+  },
+  {
+    title: 'Holocron vault access',
+    detail: 'Interactive stats, virtue insights, holocron recommendations, and bespoke meditation playlists.',
+  },
+  {
+    title: 'Strategic training plan',
+    detail: 'Five tailored modules plus live-fire missions, allies, rivals, and a Force ability roadmap.',
+  },
+  {
+    title: 'Shareable keepsakes',
+    detail: 'Unlock the download-ready certificate, copyable profile link, and instant social sharing buttons.',
+  },
+];
+
+function StatsBar({ label, percentage, description }: StatsBarProps) {
+  const clamped = Math.max(0, Math.min(percentage, 100));
+  const visual = Math.max(clamped, clamped > 0 ? 6 : 0);
+  return (
+    <div className="bg-gray-900/60 border border-gray-800 rounded-lg p-4 space-y-2">
+      <div className="flex items-center justify-between text-sm text-gray-300">
+        <span className="font-semibold text-gray-100">{label}</span>
+        <span>{clamped}%</span>
+      </div>
+      <div className="h-2 w-full rounded bg-gray-800 overflow-hidden">
+        <div
+          className="h-full rounded bg-gradient-to-r from-jedi-blue via-jedi-gold to-jedi-green transition-all duration-500"
+          style={{ width: `${visual}%` }}
+        />
+      </div>
+      {description && <p className="text-xs text-gray-400 leading-relaxed">{description}</p>}
+    </div>
+  );
+}
+
+function VirtueCard({ label, description, percentage }: VirtueProps) {
+  return (
+    <div className="bg-gray-900/60 border border-gray-800 rounded-lg p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-base font-semibold text-jedi-gold">{label}</h4>
+        <span className="text-sm text-gray-300">{percentage}%</span>
+      </div>
+      <p className="text-sm text-gray-400 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+function TimelineCard({ era, highlight, outcome }: TimelineProps) {
+  return (
+    <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-1">
+      <p className="text-xs uppercase tracking-wider text-jedi-gold">{era}</p>
+      <p className="text-sm text-gray-200 font-medium">{highlight}</p>
+      <p className="text-xs text-gray-400">{outcome}</p>
+    </div>
+  );
+}
+
+function ModuleCard({ title, description, duration }: ModuleProps) {
+  return (
+    <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4">
+      <h4 className="text-sm font-semibold text-gray-100">{title}</h4>
+      <p className="text-sm text-gray-400 leading-relaxed mt-1">{description}</p>
+      <p className="text-xs text-gray-500 mt-2 uppercase tracking-wide">Duration: {duration}</p>
+    </div>
+  );
+}
+
+function MissionCard({ title, location, objective }: MissionProps) {
+  return (
+    <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-2">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-jedi-blue">{location}</p>
+        <h4 className="text-sm font-semibold text-gray-100">{title}</h4>
+      </div>
+      <p className="text-sm text-gray-400 leading-relaxed">{objective}</p>
+    </div>
+  );
+}
+
+function StarStop({ stop, focus, reason }: StarStopProps) {
+  return (
+    <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-1">
+      <h4 className="text-sm font-semibold text-gray-100">{stop}</h4>
+      <p className="text-xs text-jedi-blue uppercase tracking-wide">Focus: {focus}</p>
+      <p className="text-sm text-gray-400 leading-relaxed">{reason}</p>
+    </div>
+  );
 }
 
 export default function Home() {
-  const router = useRouter();
   const [name, setName] = useState('');
-  // Initialise answers for each question.  Each element holds the three
-  // rankings for that question.  We clone the template for every
-  // question to avoid shared state.
-  const [answers, setAnswers] = useState<RankedAnswer[]>(
-    () => QUESTIONS.map(() => ({ first: null, second: null, third: null }))
-  );
+  const [answers, setAnswers] = useState<RankedAnswer[]>(() => createEmptyAnswers());
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  // When the AI returns structured metadata (colour, forms, etc.),
-  // capture it here for certificate generation.  For now it remains
-  // undefined until extraction is implemented.
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profile, setProfile] = useState('');
+  const [profileData, setProfileData] = useState<JediProfileData | null>(null);
+  const [error, setError] = useState('');
+  const [isPaid, setIsPaid] = useState(false);
+  const resultRef = useRef<HTMLDivElement | null>(null);
 
-  // Play a lightsaber swoosh sound whenever the user interacts with a
-  // ranking select.  The file lives in the public folder and is small
-  // enough to load instantly.  Using the native Audio API keeps
-  // dependencies minimal.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const hasCookie = document.cookie.includes('jediPaid=true');
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    setIsPaid(hasCookie || (params ? params.has('paid') : false));
+  }, []);
+
+  const answeredCount = useMemo(() => {
+    return answers.filter((answer) => answer.first && answer.second && answer.third).length;
+  }, [answers]);
+
+  const progress = useMemo(() => {
+    if (QUESTIONS.length === 0) return 0;
+    return Math.round((answeredCount / QUESTIONS.length) * 100);
+  }, [answeredCount]);
+
   const playSfx = () => {
     try {
       const audio = new Audio('/saber.mp3');
       audio.volume = 0.4;
-      audio.play().catch(() => {});
+      void audio.play();
     } catch {
-      /* no sound on server */
+      // ignore audio issues in non-browser contexts
     }
   };
 
-  // Determine whether the current user has unlocked the full profile.
-  // We check for the presence of our cookie or a query parameter in
-  // window.location.  Because cookies are asynchronous on the server,
-  // this code runs in the browser only.
-  const isPaid = useMemo(() => {
-    if (typeof document === 'undefined') return false;
-    const hasCookie = document.cookie.includes('jediPaid=true');
-    const params = new URLSearchParams(window.location.search);
-    return hasCookie || params.has('paid');
-  }, [typeof document !== 'undefined' && document.cookie, typeof window !== 'undefined' && window.location.search]);
-
-  // Update an answer when a select changes.  This helper ensures that
-  // updates are immutable and that each rank remains unique within a
-  // question.  We accept null to clear a selection.
-  const updateAnswer = (
-    questionIndex: number,
-    rank: keyof RankedAnswer,
-    value: string | null
-  ) => {
+  const updateAnswer = (questionIndex: number, rank: keyof RankedAnswer, value: string | null) => {
     playSfx();
     setAnswers((prev) => {
       const next = [...prev];
@@ -133,47 +200,40 @@ export default function Home() {
     });
   };
 
-  // Determine whether all ranks have been selected for all questions.
   const canSubmit = useMemo(() => {
-    return answers.every((a) => a.first && a.second && a.third);
+    return answers.every((answer) => answer.first && answer.second && answer.third);
   }, [answers]);
 
-  // On submission, call our generation endpoint.  We send both the
-  // participant's name and their ranked answers.  The API will return
-  // markdown describing the user's Jedi destiny.  Network errors are
-  // surfaced to the user.
   const handleSubmit = async () => {
     setError('');
     if (!canSubmit) {
-      setError('Please rank at least three options for every question.');
+      setError('Please rank your top three choices for every question.');
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/generate', {
+      const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, answers }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to generate profile');
       }
-      const data = await res.json();
+      const data = await response.json();
       setProfile(data.profile);
       setProfileData(data.data ?? null);
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(err.message || 'An unexpected disturbance in the Force occurred.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Kick off a Stripe Checkout session.  We call our backend route to
-  // create a session and then redirect the browser to Stripe's hosted
-  // payment page.  The price is determined server‑side via the
-  // environment variable PRICE_CENTS.  Errors are shown if the
-  // fetch fails.
   const handlePay = async () => {
     try {
       const res = await fetch('/api/stripe/checkout', { method: 'POST' });
@@ -183,24 +243,19 @@ export default function Home() {
       }
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.location.href = data.url as string;
       }
     } catch (err: any) {
-      alert(err.message || 'Payment failed');
+      alert(err.message || 'Payment failed. Try again in a moment.');
     }
   };
 
-  // Helper to download a personalised certificate.  It sends the
-  // essential profile details to the server, receives a PDF blob in
-  // response, and triggers a client download.  If structured data
-  // isn't available, it will fall back to using the name and a
-  // placeholder colour.
   const downloadCertificate = async () => {
     try {
       const payload = {
-        name: name || 'Padawan',
-        color: profileData?.color || 'blue',
-        forms: profileData?.forms || ['Form I'],
+        name: (profileData?.name || name || 'Padawan').trim(),
+        color: profileData?.saber.color || 'blue',
+        forms: profileData?.saber.formDetails.map((form) => form.name) || ['Form I: Shii-Cho'],
         portrait: null,
       };
       const res = await fetch('/api/certificate', {
@@ -211,12 +266,12 @@ export default function Home() {
       if (!res.ok) throw new Error('Unable to generate certificate');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'jedi-certificate.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'jedi-certificate.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       alert(err.message || 'Error downloading certificate');
@@ -224,145 +279,350 @@ export default function Home() {
   };
 
   return (
-    <main className="w-full max-w-3xl px-4 py-10 space-y-8">
-      <h1 className="text-4xl md:text-5xl font-orbitron text-center text-jedi-blue">
-        Jedi Path Quiz
-      </h1>
-      <p className="text-center text-gray-400 max-w-xl mx-auto">
-        Rank your top three choices for each question to reveal your Jedi destiny.
-      </p>
-
-      {/* Name input */}
-      <div className="flex justify-center">
-        <input
-          type="text"
-          value={name}
-          placeholder="Your name (optional)"
-          onChange={(e) => setName(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded px-4 py-2 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-jedi-blue"
-        />
-      </div>
-
-      {QUESTIONS.map((q, qIndex) => {
-        const ranks = answers[qIndex];
-        const usedValues = new Set<string>([
-          ranks.first ?? undefined,
-          ranks.second ?? undefined,
-          ranks.third ?? undefined,
-        ].filter(Boolean) as string[]);
-        return (
-          <div
-            key={qIndex}
-            className="bg-gray-900/60 backdrop-blur-md p-6 rounded-lg shadow-lg space-y-4"
-          >
-            <p className="font-orbitron text-xl text-jedi-gold">
-              {qIndex + 1}. {q.text}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {(['first', 'second', 'third'] as (keyof RankedAnswer)[]).map((rank) => {
-                const label = rank === 'first' ? '1st' : rank === 'second' ? '2nd' : '3rd';
-                return (
-                  <div key={rank} className="flex flex-col">
-                    <label className="text-sm mb-1 text-gray-300">{label} choice</label>
-                    <select
-                      value={ranks[rank] ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value || null;
-                        updateAnswer(qIndex, rank, val);
-                      }}
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-jedi-blue"
-                    >
-                      <option value="">Select...</option>
-                      {q.options.map((opt) => (
-                        <option
-                          key={opt}
-                          value={opt}
-                          disabled={opt !== ranks[rank] && usedValues.has(opt)}
-                        >
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })}
+    <main className="w-full max-w-5xl px-4 py-12 space-y-12">
+      <section className="text-center space-y-6">
+        <span className="inline-block uppercase tracking-[0.3em] text-xs text-jedi-gold">Galactic Assessment</span>
+        <h1 className="text-4xl md:text-5xl font-orbitron text-jedi-blue">
+          Forge Your Personal Jedi Codex
+        </h1>
+        <p className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
+          Rank your instincts, discover your dominant traits, and unlock an immersive dossier worthy of the Jedi archives.
+          Each question sharpens the Force signature that defines your destiny.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {heroHighlights.map((feature) => (
+            <div key={feature.title} className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 space-y-2">
+              <h3 className="text-lg font-semibold text-jedi-gold">{feature.title}</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-400 uppercase tracking-widest">Progress</p>
+            <p className="text-2xl font-semibold text-gray-100">{progress}% complete</p>
+            <p className="text-sm text-gray-500">
+              {answeredCount} / {QUESTIONS.length} holocron prompts ranked
+            </p>
           </div>
-        );
-      })}
+          <div className="w-full md:w-1/2 h-3 bg-gray-800 rounded overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-jedi-blue via-jedi-gold to-jedi-green transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
 
-      {error && <p className="text-red-500 text-center">{error}</p>}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Enter your chosen name (optional)"
+            className="flex-1 bg-gray-950/80 border border-gray-800 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-jedi-blue"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || loading}
+            className="px-6 py-3 rounded-lg bg-jedi-blue text-black font-semibold hover:bg-jedi-gold transition disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Consulting the Holocron…' : 'Reveal My Jedi Destiny'}
+          </button>
+        </div>
+      </section>
 
-      <div className="flex justify-center">
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit || loading}
-          className="px-6 py-3 rounded bg-jedi-blue text-black font-semibold hover:bg-jedi-gold transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Preparing your destiny...' : 'Discover your Jedi Path'}
-        </button>
-      </div>
+      <section className="space-y-6">
+        {QUESTIONS.map((question, qIndex) => {
+          const ranks = answers[qIndex];
+          const usedValues = new Set<string>(
+            [ranks.first ?? undefined, ranks.second ?? undefined, ranks.third ?? undefined].filter(Boolean) as string[]
+          );
+          return (
+            <div
+              key={question.text}
+              className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-4 shadow-lg"
+            >
+              <div className="flex items-baseline justify-between">
+                <p className="text-lg font-semibold text-jedi-gold">
+                  {qIndex + 1}. {question.text}
+                </p>
+                <p className="text-xs uppercase tracking-widest text-gray-500">Rank top 3</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {(['first', 'second', 'third'] as (keyof RankedAnswer)[]).map((rank) => {
+                  const label = rank === 'first' ? '1st Choice' : rank === 'second' ? '2nd Choice' : '3rd Choice';
+                  return (
+                    <div key={rank} className="flex flex-col gap-2">
+                      <label className="text-sm text-gray-300">{label}</label>
+                      <select
+                        value={ranks[rank] ?? ''}
+                        onChange={(event) => {
+                          const value = event.target.value || null;
+                          updateAnswer(qIndex, rank, value);
+                        }}
+                        className="bg-gray-950/80 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-jedi-blue"
+                      >
+                        <option value="">Select…</option>
+                        {question.options.map((option) => (
+                          <option
+                            key={option}
+                            value={option}
+                            disabled={option !== ranks[rank] && usedValues.has(option)}
+                          >
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {error && <p className="text-center text-sm text-red-400">{error}</p>}
+      </section>
 
-      {/* Display the generated profile */}
+      <section className="bg-gray-900/40 border border-gray-800 rounded-xl p-6 space-y-4">
+        <h2 className="text-xl font-semibold text-gray-100 text-center">What you unlock for $4.97</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {unlockBenefits.map((benefit) => (
+            <div key={benefit.title} className="bg-gray-950/60 border border-gray-800 rounded-lg p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-jedi-gold uppercase tracking-wide">{benefit.title}</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">{benefit.detail}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 text-center">
+          One-time purchase. Instant access. Use it for RPG characters, cosplay inspirations, or personal motivation.
+        </p>
+      </section>
+
       {profile && (
-        <div className="bg-gray-900/70 p-6 rounded-lg shadow-xl mt-8 space-y-4">
-          {isPaid ? (
-            <>
-              <ReactMarkdown className="prose prose-invert max-w-none">
-                {profile}
-              </ReactMarkdown>
-              <hr className="border-gray-700" />
-              <div className="flex flex-wrap gap-4 justify-center">
+        <section ref={resultRef} className="bg-gray-950/70 border border-gray-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-xl">
+          <h2 className="text-2xl font-orbitron text-jedi-blue text-center">Your Holocron Results</h2>
+          <div className="relative">
+            {!isPaid && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/70 backdrop-blur rounded-xl text-center space-y-4 p-6">
+                <p className="text-lg font-semibold text-jedi-gold">Unlock the full Holocron</p>
+                <p className="text-sm text-gray-300 max-w-sm">
+                  You&rsquo;re moments away from a 500+ word cinematic profile, training regimen, allies, rivals, star map, and certificate download.
+                </p>
+                <button
+                  onClick={handlePay}
+                  className="px-6 py-3 rounded-lg bg-jedi-gold text-black font-semibold hover:bg-jedi-blue transition"
+                >
+                  Pay $4.97 to Access Everything
+                </button>
+                <p className="text-xs text-gray-500 max-w-xs">
+                  Perfect for roleplaying, LARP planning, convention personas, or gifting a friend their Jedi alter ego.
+                </p>
+              </div>
+            )}
+            <div className={`space-y-6 ${!isPaid ? 'blur-sm select-none pointer-events-none' : ''}`}>
+              {profileData && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-3">
+                    <p className="text-xs uppercase tracking-widest text-jedi-gold">Archetype</p>
+                    <h3 className="text-xl font-semibold text-gray-100">{profileData.archetype.label}</h3>
+                    <p className="text-sm text-gray-400 leading-relaxed">{profileData.archetype.description}</p>
+                    <p className="text-xs text-gray-500">Motto: “{profileData.archetype.motto}”</p>
+                    <p className="text-xs text-gray-500">Ceremonial Role: {profileData.archetype.ceremonialRole}</p>
+                  </div>
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-3">
+                    <p className="text-xs uppercase tracking-widest text-jedi-gold">Secondary Influence</p>
+                    <h3 className="text-xl font-semibold text-gray-100">{profileData.secondary.label}</h3>
+                    <p className="text-sm text-gray-400 leading-relaxed">{profileData.secondary.tagline}</p>
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-jedi-gold">Lightsaber Signature</p>
+                      <ul className="text-sm text-gray-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Blade: {profileData.saber.color}</li>
+                        <li>Accent: {profileData.saber.accent}</li>
+                        <li>Hilt: {profileData.saber.hiltStyle}</li>
+                        <li>Ignition: {profileData.saber.ignitionSound}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {profileData.traitBreakdown.map((trait) => (
+                    <StatsBar
+                      key={trait.trait}
+                      label={`${trait.label}`}
+                      percentage={trait.percentage}
+                      description={trait.description}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {profileData && profileData.virtueHighlights.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Virtue Highlights</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {profileData.virtueHighlights.map((virtue) => (
+                      <VirtueCard
+                        key={virtue.id}
+                        label={virtue.label}
+                        description={virtue.description}
+                        percentage={virtue.percentage}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-100">Companion</h3>
+                    <p className="text-sm text-gray-300">{profileData.companion.name} — {profileData.companion.role}</p>
+                    <p className="text-xs text-gray-500">Species: {profileData.companion.species}</p>
+                    <p className="text-sm text-gray-400 leading-relaxed">{profileData.companion.description}</p>
+                  </div>
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-100">Rival</h3>
+                    <p className="text-sm text-gray-300">{profileData.rival.name}</p>
+                    <p className="text-sm text-gray-400 leading-relaxed">{profileData.rival.description}</p>
+                    <p className="text-xs text-gray-500">Lesson: {profileData.rival.lesson}</p>
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Saber Forms</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {profileData.saber.formDetails.map((form) => (
+                      <div key={form.name} className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-2">
+                        <p className="text-sm font-semibold text-jedi-gold">{form.name}</p>
+                        <p className="text-sm text-gray-400 leading-relaxed">{form.rationale}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Training Modules</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {profileData.trainingModules.map((module) => (
+                      <ModuleCard key={module.title} {...module} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Mission Directives</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {profileData.missions.map((mission) => (
+                      <MissionCard key={mission.title} {...mission} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Star Map Itinerary</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {profileData.starMap.map((stop) => (
+                      <StarStop key={stop.stop} {...stop} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-100">Timeline</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {profileData.timeline.map((beat, index) => (
+                      <TimelineCard key={`${beat.era}-${index}`} {...beat} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-2">
+                    <h3 className="text-sm font-semibold text-jedi-gold uppercase tracking-wide">Holocrons</h3>
+                    <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+                      {profileData.holocrons.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-2">
+                    <h3 className="text-sm font-semibold text-jedi-gold uppercase tracking-wide">Meditations</h3>
+                    <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+                      {profileData.meditations.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-gray-900/40 border border-gray-800 rounded-lg p-4 space-y-2">
+                    <h3 className="text-sm font-semibold text-jedi-gold uppercase tracking-wide">Field Gear</h3>
+                    <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+                      {profileData.gear.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-5">
+                <ReactMarkdown className="prose prose-invert max-w-none">{profile}</ReactMarkdown>
+              </div>
+
+              <div className="flex flex-wrap gap-3 justify-center">
                 <button
                   onClick={downloadCertificate}
-                  className="px-4 py-2 rounded bg-jedi-green text-black font-semibold hover:bg-jedi-gold transition"
+                  className="px-4 py-2 rounded-lg bg-jedi-green text-black font-semibold hover:bg-jedi-gold transition"
                 >
                   Download Certificate
                 </button>
                 <button
                   onClick={() => {
-                    navigator.clipboard
-                      .writeText(window.location.href)
-                      .then(() => alert('Link copied to clipboard'))
-                      .catch(() => alert('Unable to copy link'));
+                    if (navigator?.clipboard && typeof window !== 'undefined') {
+                      navigator.clipboard
+                        .writeText(window.location.href)
+                        .then(() => alert('Link copied to clipboard'))
+                        .catch(() => alert('Unable to copy link.'));
+                    }
                   }}
-                  className="px-4 py-2 rounded bg-jedi-purple text-black font-semibold hover:bg-jedi-gold transition"
+                  className="px-4 py-2 rounded-lg bg-jedi-purple text-black font-semibold hover:bg-jedi-gold transition"
                 >
                   Copy Link
                 </button>
                 <button
                   onClick={() => {
-                    const tweet = encodeURIComponent(
-                      `I just discovered my Jedi destiny! Find yours at ${window.location.origin}`
-                    );
-                    window.open(
-                      `https://twitter.com/intent/tweet?text=${tweet}`,
-                      '_blank'
-                    );
+                    if (typeof window !== 'undefined') {
+                      const tweet = encodeURIComponent(
+                        `I just unlocked my Jedi destiny! Discover yours for $4.97 at ${window.location.origin}`
+                      );
+                      window.open(`https://twitter.com/intent/tweet?text=${tweet}`, '_blank');
+                    }
                   }}
-                  className="px-4 py-2 rounded bg-jedi-red text-black font-semibold hover:bg-jedi-gold transition"
+                  className="px-4 py-2 rounded-lg bg-jedi-red text-black font-semibold hover:bg-jedi-gold transition"
                 >
-                  Tweet Your Destiny
+                  Share on X
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              <p className="text-gray-300">{profile.slice(0, 300)}...</p>
-              <div className="backdrop-blur-sm bg-black/70 p-4 mt-4 rounded">
-                <p className="text-gray-400 mb-4">
-                  Unlock your full Jedi destiny to view the complete profile.
-                </p>
-                <button
-                  onClick={handlePay}
-                  className="px-6 py-2 rounded bg-jedi-gold text-black font-semibold hover:bg-jedi-blue transition"
-                >
-                  Pay $4.97 to Unlock Full Destiny
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        </section>
       )}
     </main>
   );
